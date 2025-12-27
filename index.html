@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ideal Classes | Pupri</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav>
+        <div class="logo" onclick="goHome()">IDEAL CLASSES 🎓</div>
+        <span class="admin-link" onclick="toggleAdmin()">Admin Access</span>
+    </nav>
+
+    <div class="container">
+
+        <div id="admin-login" class="hidden">
+            <h2 style="margin-top:0;">🔐 Admin Login</h2>
+            <input type="email" id="admin-email" placeholder="Email">
+            <input type="password" id="admin-pass" placeholder="Password">
+            <button class="btn-login" onclick="adminLogin()">Login</button>
+        </div>
+
+        <div id="admin-panel" class="hidden">
+            <h2 style="margin-top:0;">👨‍🏫 Admin Dashboard</h2>
+            <p style="color:#666; font-size:0.9rem;">Add content for your students here.</p>
+            
+            <label>Type</label>
+            <select id="adm-type" onchange="toggleInputs()">
+                <option value="quiz">📝 Online Test</option>
+                <option value="note">📄 PDF Note</option>
+                <option value="quote">💡 Homepage Quote</option>
+                <option value="course">📚 Course</option>
+            </select>
+
+            <div id="meta-inputs" style="display:flex; gap:10px;">
+                <select id="adm-board" onchange="updateAdminClassList()">
+                    <option value="CBSE">CBSE</option>
+                    <option value="Bihar Board">Bihar Board</option>
+                    <option value="English">English</option>
+                    <option value="Competitive Exam">Competitive Exam</option>
+                    <option value="Courses">Courses</option>
+                </select>
+                <select id="adm-class"></select>
+            </div>
+
+            <input type="text" id="adm-title" placeholder="Title (e.g. Science Chapter 1 Test)">
+            
+            <div id="quiz-inputs" style="display:flex; gap:10px;">
+                <input type="number" id="adm-time" placeholder="Mins (e.g. 30)">
+                <input type="number" id="adm-marks" placeholder="Marks (e.g. 20)">
+            </div>
+
+            <input type="text" id="adm-link" placeholder="Paste Link (Google Form / Drive PDF)">
+            
+            <button class="btn-upload" onclick="saveContent()">Upload Content</button>
+
+            <div style="margin-top:30px; border-top:1px solid #eee; padding-top:10px;">
+                <h4>🗑 Manage Content</h4>
+                <div id="admin-list" style="max-height:200px; overflow-y:auto;">Loading...</div>
+            </div>
+            
+            <button onclick="logout()" style="margin-top:20px; background:none; border:none; color:var(--red); cursor:pointer;">Logout</button>
+        </div>
+
+        <div id="view-home">
+            <div class="hero-box">
+                <div class="hero-content">
+                    <h1 class="hero-title">Ideal Classes</h1>
+                    <p class="hero-subtitle">Excellence in Education | Adarsh Sir</p>
+                    <div class="address-badge">📍 Near 35 No. Gumti, In front of ITI College, Pupri</div>
+                    <div id="quote-display" style="margin-top:15px; font-style:italic; opacity:0.9;">Loading...</div>
+                </div>
+            </div>
+
+            <h3 style="color:#444;">Select Your Course</h3>
+            <div class="grid">
+                <div class="card" onclick="selectBoard('CBSE')"><span class="icon">📘</span><h3>CBSE Board</h3></div>
+                <div class="card" onclick="selectBoard('Bihar Board')"><span class="icon">📙</span><h3>Bihar Board</h3></div>
+                <div class="card" onclick="selectBoard('English')"><span class="icon">🅰️</span><h3>English</h3></div>
+                <div class="card" onclick="selectBoard('Competitive Exam')"><span class="icon">🏆</span><h3>Competitive Exam</h3></div>
+                <div class="card" onclick="selectBoard('Courses')"><span class="icon">📚</span><h3>Courses</h3></div>
+            </div>
+        </div>
+
+        <div id="view-selection" class="hidden">
+            <button class="back-btn" onclick="goHome()">⬅️ Back Home</button>
+            <h2 id="selection-title" style="text-align:center;">Select Class</h2>
+            <div id="selection-grid" class="grid"></div>
+        </div>
+
+        <div id="view-dashboard" class="hidden">
+            <button class="back-btn" onclick="backToSelection()">⬅️ Change Selection</button>
+            <h2 style="margin:0 0 20px 0;"><span id="lbl-context"></span></h2>
+            
+            <div class="tabs">
+                <div class="tab active" onclick="filterType('quiz', this)">Online Tests</div>
+                <div class="tab" onclick="filterType('note', this)">PDF Notes</div>
+                <div class="tab" onclick="filterType('course', this)">Courses</div>
+            </div>
+
+            <div id="content-list">
+                <p style="text-align:center; color:#999;">Loading...</p>
+            </div>
+        </div>
+
+    </div>
+    <script src="config.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
