@@ -14,6 +14,7 @@ const CLASS_MAP = {
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
+    updateAdminClassList(); // Initialize class list with default board
     loadQuotes();
     checkAdminLogin();
 });
@@ -36,8 +37,10 @@ async function adminLogin() {
 
     if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
         adminUser = { email };
+        localStorage.setItem('adminUser', JSON.stringify(adminUser));
         document.getElementById('admin-login').classList.add('hidden');
         document.getElementById('admin-panel').classList.remove('hidden');
+        toggleInputs(); // Initialize admin form inputs
         loadAdminContent();
     } else {
         alert('Invalid credentials');
@@ -50,6 +53,7 @@ function checkAdminLogin() {
         adminUser = JSON.parse(savedAdmin);
         document.getElementById('admin-login').classList.add('hidden');
         document.getElementById('admin-panel').classList.remove('hidden');
+        toggleInputs(); // Initialize admin form inputs
         loadAdminContent();
     }
 }
@@ -91,25 +95,89 @@ function updateAdminClassList() {
     });
 }
 
+// File Upload to Supabase Storage
+async function uploadFileToStorage(file) {
+    if (!file) return null;
+    
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+        alert(`File size exceeds 50MB limit. File size: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+        return null;
+    }
+    
+    const timestamp = Date.now();
+    const fileName = `${timestamp}-${file.name}`;
+    const filePath = `${STORAGE_BUCKET}/${fileName}`;
+    
+    try {
+        const { data, error } = await supabaseClient.storage
+            .from(STORAGE_BUCKET)
+            .upload(fileName, file, {
+                cacheControl: '3600',
+                upsert: false
+            });
+        
+        if (error) throw error;
+        
+        // Get public URL
+        const { data: publicUrl } = supabaseClient.storage
+            .from(STORAGE_BUCKET)
+            .getPublicUrl(fileName);
+        
+        return {
+            fileName: file.name,
+            storagePath: fileName,
+            publicUrl: publicUrl.publicUrl
+        };
+    } catch (error) {
+        console.error('File upload error:', error);
+        alert('Error uploading file: ' + error.message);
+        return null;
+    }
+}
+
 async function saveContent() {
     const type = document.getElementById('adm-type').value;
     const title = document.getElementById('adm-title').value;
     const link = document.getElementById('adm-link').value;
+    const fileInput = document.getElementById('adm-file');
+    const file = fileInput ? fileInput.files[0] : null;
     const board = document.getElementById('adm-board').value;
     const cls = document.getElementById('adm-class').value;
     
-    if (!title || !link) {
-        alert('Please fill all required fields');
+    if (!title) {
+        alert('Please fill title field');
+        return;
+    }
+    
+    // Check if either link or file is provided
+    if (!link && !file) {
+        alert('Please provide either a link or upload a file');
         return;
     }
 
+    let finalLink = link;
+    let fileMetadata = null;
+    
+    // Upload file if provided
+    if (file) {
+        const uploadResult = await uploadFileToStorage(file);
+        if (!uploadResult) return; // Upload failed
+        
+        fileMetadata = uploadResult;
+        finalLink = uploadResult.publicUrl; // Use storage URL
+    }
+    
     const content = {
         type,
         title,
-        link,
+        link: finalLink,
         board,
         class: cls,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        isStorageFile: !!file,
+        fileName: fileMetadata ? fileMetadata.fileName : null,
+        storagePath: fileMetadata ? fileMetadata.storagePath : null
     };
 
     if (type === 'quiz') {
@@ -129,6 +197,7 @@ async function saveContent() {
         document.getElementById('adm-link').value = '';
         document.getElementById('adm-time').value = '';
         document.getElementById('adm-marks').value = '';
+        if (fileInput) fileInput.value = '';
         loadAdminContent();
     } catch (error) {
         alert('Error uploading content: ' + error.message);
@@ -164,6 +233,21 @@ async function loadAdminContent() {
 async function deleteContent(id) {
     if (confirm('Delete this content?')) {
         try {
+            // Get content details to check if it's a storage file
+            const { data: contentData, error: fetchError } = await supabaseClient
+                .from('content')
+                .select('storagePath')
+                .eq('id', id)
+                .single();
+            
+            if (!fetchError && contentData && contentData.storagePath) {
+                // Delete file from storage
+                await supabaseClient.storage
+                    .from(STORAGE_BUCKET)
+                    .remove([contentData.storagePath]);
+            }
+            
+            // Delete content record
             const { error } = await supabaseClient
                 .from('content')
                 .delete()
@@ -209,6 +293,17 @@ function selectClass(cls) {
     document.getElementById('view-selection').classList.add('hidden');
     document.getElementById('view-dashboard').classList.remove('hidden');
     document.getElementById('lbl-context').textContent = `${currentBoard} - ${currentClass}`;
+    
+    // Set first tab as active
+    const tabs = document.querySelectorAll('.tab');
+    tabs.forEach((tab, index) => {
+        if (index === 0) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
+    });
+    
     loadContent();
 }
 
@@ -239,10 +334,12 @@ async function loadContent() {
         data.forEach(item => {
             const div = document.createElement('div');
             div.className = 'content-card';
+            const fileIcon = item.isStorageFile ? '💾' : '🔗';
+            const fileInfo = item.isStorageFile ? ` <small style="color:#999;"> (${item.fileName})</small>` : '';
             div.innerHTML = `
-                <h4>${item.title}</h4>
+                <h4>${item.title}${fileInfo}</h4>
                 ${item.time ? `<p>⏱ ${item.time} mins | 📊 ${item.marks} marks</p>` : ''}
-                <a href="${item.link}" target="_blank" class="btn-open">Open ${item.type === 'quiz' ? 'Test' : item.type === 'note' ? 'PDF' : 'Course'}</a>
+                <a href="${item.link}" target="_blank" class="btn-open">${fileIcon} Open ${item.type === 'quiz' ? 'Test' : item.type === 'note' ? 'PDF' : 'Course'}</a>
             `;
             list.appendChild(div);
         });
@@ -254,9 +351,13 @@ async function loadContent() {
 function filterType(type, element) {
     currentFilter = type;
     
+    // Remove active class from all tabs
     document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+    
+    // Add active class to clicked tab
     element.classList.add('active');
     
+    // Load content with new filter
     loadContent();
 }
 

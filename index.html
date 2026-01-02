@@ -55,6 +55,12 @@
 
             <input type="text" id="adm-link" placeholder="Paste Link (Google Form / Drive PDF)">
             
+            <div style="margin-top:15px; padding:15px; background:#f0f4ff; border-radius:8px;">
+                <label style="margin-bottom:8px; display:block;">📁 Or Upload File</label>
+                <input type="file" id="adm-file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.mp4,.zip" style="padding:8px; width:100%; border:2px dashed var(--primary); border-radius:6px;">
+                <small style="color:#666; display:block; margin-top:5px;">Supported: PDF, Images, Videos, Documents (Max 50MB)</small>
+            </div>
+            
             <button class="btn-upload" onclick="saveContent()">Upload Content</button>
 
             <div style="margin-top:30px; border-top:1px solid #eee; padding-top:10px;">
